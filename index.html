@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeuroScan — Brain Tumor Detection</title>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=cabinet-grotesk@700,800&display=swap" rel="stylesheet" />
+  <script defer src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b0d10;
+      --surface:#12161b;
+      --surface-2:#181d24;
+      --surface-3:#202630;
+      --border:rgba(230,232,236,.12);
+      --text:#edf1f4;
+      --muted:#9da6b2;
+      --faint:#6f7782;
+      --accent:#00c2b2;
+      --accent-2:#7be7dd;
+      --danger:#e35d7a;
+      --shadow:0 20px 60px rgba(0,0,0,.28);
+      --radius:18px;
+      --radius-sm:10px;
+      --font-body:'Satoshi','Helvetica Neue',sans-serif;
+      --font-display:'Cabinet Grotesk','Satoshi',sans-serif;
+      --space-1:4px;
+      --space-2:8px;
+      --space-3:12px;
+      --space-4:16px;
+      --space-5:20px;
+      --space-6:24px;
+      --space-8:32px;
+      --space-10:40px;
+      --space-12:48px;
+      --space-16:64px;
+      --grid-max:1320px;
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{
+      min-height:100dvh;
+      font-family:var(--font-body);
+      color:var(--text);
+      background:
+        linear-gradient(180deg, rgba(0,194,178,.08), transparent 22%),
+        radial-gradient(circle at 100% 0%, rgba(0,194,178,.08), transparent 26%),
+        var(--bg);
+      line-height:1.6;
+      -webkit-font-smoothing:antialiased;
+      text-rendering:optimizeLegibility;
+    }
+
+    .grid-shell{
+      width:min(100% - 32px, var(--grid-max));
+      margin-inline:auto;
+      display:grid;
+      grid-template-columns:repeat(12, minmax(0, 1fr));
+      gap:var(--space-6);
+    }
+
+    .skip-link{
+      position:absolute;
+      left:-9999px;
+      top:auto;
+    }
+    .skip-link:focus{
+      left:16px;
+      top:16px;
+      z-index:100;
+      background:var(--accent);
+      color:#05211f;
+      padding:10px 14px;
+      border-radius:10px;
+      font-weight:700;
+    }
+
+    header{
+      position:sticky;
+      top:0;
+      z-index:50;
+      border-bottom:1px solid var(--border);
+      backdrop-filter:blur(14px);
+      background:rgba(11,13,16,.82);
+    }
+    .header-inner{
+      padding:20px 0;
+      align-items:center;
+    }
+    .brand{
+      grid-column:1 / span 7;
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .brand-mark{
+      width:42px;height:42px;color:var(--accent);flex:0 0 auto;
+    }
+    .brand-copy h1{
+      font-family:var(--font-display);
+      font-size:clamp(1.2rem,1rem + 1vw,1.9rem);
+      font-weight:800;
+      letter-spacing:-.03em;
+      line-height:1;
+    }
+    .brand-copy p{
+      color:var(--muted);
+      font-size:.88rem;
+      margin-top:4px;
+    }
+    .header-meta{
+      grid-column:8 / -1;
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:12px;
+    }
+    .chip{
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.02);
+      color:var(--muted);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    main{
+      padding:36px 0 56px;
+    }
+
+    .hero{
+      margin-bottom:var(--space-8);
+      align-items:end;
+    }
+    .hero-copy{
+      grid-column:1 / span 8;
+    }
+    .eyebrow{
+      color:var(--accent-2);
+      font-size:.8rem;
+      text-transform:uppercase;
+      letter-spacing:.14em;
+      margin-bottom:10px;
+    }
+    .hero-copy h2{
+      font-family:var(--font-display);
+      font-size:clamp(2.3rem,1.4rem + 4vw,5.8rem);
+      line-height:.95;
+      letter-spacing:-.05em;
+      max-width:11ch;
+    }
+    .hero-copy p{
+      margin-top:18px;
+      color:var(--muted);
+      max-width:62ch;
+      font-size:1.02rem;
+    }
+    .hero-aside{
+      grid-column:9 / -1;
+      border-top:1px solid var(--border);
+      padding-top:14px;
+      color:var(--muted);
+      font-size:.92rem;
+    }
+
+    .app-card{
+      grid-column:1 / -1;
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border:1px solid var(--border);
+      border-radius:28px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .app-grid{
+      display:grid;
+      grid-template-columns:repeat(12, minmax(0, 1fr));
+      gap:0;
+    }
+
+    .sidebar{
+      grid-column:1 / span 3;
+      border-right:1px solid var(--border);
+      background:rgba(255,255,255,.015);
+      padding:24px;
+    }
+    .sidebar h3{
+      font-family:var(--font-display);
+      font-size:1rem;
+      letter-spacing:-.02em;
+      margin-bottom:14px;
+    }
+    .modes{
+      display:grid;
+      gap:10px;
+    }
+    .mode-btn{
+      width:100%;
+      text-align:left;
+      background:var(--surface);
+      border:1px solid var(--border);
+      color:var(--text);
+      padding:14px 16px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      transition:transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .mode-btn:hover,.mode-btn:focus-visible{border-color:rgba(0,194,178,.55);transform:translateY(-1px)}
+    .mode-btn.active{
+      background:var(--accent);
+      color:#062321;
+      border-color:transparent;
+    }
+
+    .meta-block{
+      margin-top:24px;
+      padding-top:20px;
+      border-top:1px solid var(--border);
+    }
+    .meta-block p{
+      color:var(--muted);
+      font-size:.92rem;
+      max-width:28ch;
+    }
+
+    .workspace{
+      grid-column:4 / -1;
+      padding:24px;
+      display:grid;
+      gap:20px;
+    }
+
+    .drop{
+      border:1.5px dashed rgba(237,241,244,.16);
+      border-radius:22px;
+      padding:44px 24px;
+      min-height:180px;
+      display:grid;
+      place-items:center;
+      text-align:center;
+      color:var(--muted);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01)),
+        var(--surface);
+      cursor:pointer;
+      transition:border-color .18s ease, transform .18s ease, background .18s ease;
+    }
+    .drop:hover,.drop.drag{
+      border-color:rgba(0,194,178,.6);
+      background:var(--surface-2);
+      transform:translateY(-2px);
+    }
+    .drop svg{
+      width:42px;height:42px;color:var(--accent);margin:0 auto 12px;
+    }
+    .drop strong{color:var(--text)}
+    .hide{display:none!important}
+
+    .controls{
+      display:flex;
+      flex-wrap:wrap;
+      gap:18px 22px;
+      align-items:end;
+    }
+    .control{
+      min-width:180px;
+    }
+    .control label{
+      display:block;
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+    input[type="range"]{
+      width:100%;
+      accent-color:var(--accent);
+    }
+
+    .btn{
+      border:none;
+      border-radius:12px;
+      padding:12px 18px;
+      font-weight:800;
+      cursor:pointer;
+      font-family:inherit;
+      transition:transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{
+      background:var(--accent);
+      color:#062321;
+    }
+    .btn.secondary{
+      background:var(--surface-2);
+      color:var(--text);
+      border:1px solid var(--border);
+    }
+    .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+    .canvas-wrap{
+      position:relative;
+      width:100%;
+      min-height:320px;
+      border-radius:22px;
+      overflow:hidden;
+      background:#050607;
+      border:1px solid var(--border);
+    }
+    video,img.hidden{display:none}
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+      max-width:100%;
+    }
+
+    .status-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .status{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      color:var(--muted);
+      font-size:.92rem;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--faint);
+    }
+    .dot.on{background:var(--accent);box-shadow:0 0 10px rgba(0,194,178,.8)}
+    .dot.busy{background:#e0a44e;animation:pulse 1s infinite}
+    @keyframes pulse{50%{opacity:.35}}
+
+    .results{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:14px;
+    }
+    .stat{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:18px;
+    }
+    .stat .v{
+      font-family:var(--font-display);
+      font-size:clamp(1.5rem,1.1rem + 1vw,2.3rem);
+      line-height:1;
+      letter-spacing:-.04em;
+      color:var(--accent);
+    }
+    .stat .k{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:.78rem;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+
+    .detlist{
+      display:grid;
+      gap:8px;
+    }
+    .detlist .row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:12px 14px;
+      border-radius:12px;
+      background:var(--surface-2);
+      border:1px solid var(--border);
+    }
+    .badge{
+      background:var(--danger);
+      color:#fff;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:.75rem;
+      font-weight:800;
+      letter-spacing:.03em;
+    }
+
+    .disclaimer{
+      border-left:3px solid var(--accent);
+      padding-left:16px;
+      color:var(--muted);
+      font-size:.88rem;
+    }
+    .disclaimer strong{color:var(--text)}
+
+    footer{
+      border-top:1px solid var(--border);
+      margin-top:40px;
+      padding:24px 0 40px;
+    }
+    .footer-inner{
+      color:var(--muted);
+      font-size:.84rem;
+    }
+
+    @media (max-width: 980px){
+      .brand{grid-column:1 / -1}
+      .header-meta{grid-column:1 / -1;justify-content:flex-start}
+      .hero-copy,.hero-aside,.sidebar,.workspace{grid-column:1 / -1}
+      .sidebar{border-right:none;border-bottom:1px solid var(--border)}
+      .results{grid-template-columns:repeat(2, minmax(0,1fr))}
+    }
+
+    @media (max-width: 640px){
+      .grid-shell{width:min(100% - 20px, var(--grid-max));gap:16px}
+      .header-inner{padding:14px 0}
+      .workspace,.sidebar{padding:18px}
+      .drop{padding:32px 18px;min-height:150px}
+      .results{grid-template-columns:1fr}
+      .controls{gap:14px}
+      .control{min-width:100%}
+      .hero-copy h2{max-width:9ch}
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header>
+    <div class="grid-shell header-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="NeuroScan logo">
+          <path d="M12 2a5 5 0 0 0-5 5c-1.5.5-3 2-3 4.5S5 16 7 16.5V18a3 3 0 0 0 6 0M12 2a5 5 0 0 1 5 5c1.5.5 3 2 3 4.5S19 16 17 16.5V18a3 3 0 0 1-3 3"/>
+          <circle cx="12" cy="9" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+        <div class="brand-copy">
+          <h1>NeuroScan</h1>
+          <p>Brain tumor detection · YOLO segmentation · ONNX Runtime Web</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="chip">Client-side</span>
+        <span class="chip">MRI workflow</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="grid-shell hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow">Research Interface</div>
+        <h2 id="hero-title">Structured browser inference for tumor segmentation.</h2>
+        <p>
+          Upload an MRI scan, run ONNX inference locally in the browser, and review detections with a restrained, grid-based medical interface designed for clarity over ornament.
+        </p>
+      </div>
+      <aside class="hero-aside">
+        Built for a root-level repository layout with <code>index.html</code> and <code>best.onnx</code> in the same directory, so the app can load the model directly from <code>./best.onnx</code>.
+      </aside>
+
+      <div class="app-card">
+        <div class="app-grid">
+          <aside class="sidebar">
+            <h3>Input Mode</h3>
+            <div class="modes">
+              <button class="mode-btn active" data-mode="image">Image</button>
+              <button class="mode-btn" data-mode="video">Video</button>
+              <button class="mode-btn" data-mode="webcam">Live Camera</button>
+            </div>
+
+            <div class="meta-block">
+              <h3>Model Notes</h3>
+              <p>
+                Update the configuration block if your exported YOLO segmentation model uses a different image size, class list, or output layout.
+              </p>
+            </div>
+          </aside>
+
+          <section class="workspace" aria-label="Inference workspace">
+            <div id="dropZone" class="drop">
+              <div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                  <path d="M12 15V3m0 0L8 7m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+                </svg>
+                <div id="dropText"><strong>Click or drag</strong> an MRI scan image here</div>
+              </div>
+            </div>
+
+            <input id="fileInput" type="file" class="hide" accept="image/*" />
+
+            <div class="controls">
+              <div class="control">
+                <label for="confSlider">Confidence threshold: <span id="confVal">0.25</span></label>
+                <input id="confSlider" type="range" min="0.05" max="0.95" step="0.05" value="0.25" />
+              </div>
+
+              <div class="control">
+                <label for="iouSlider">IoU (NMS): <span id="iouVal">0.45</span></label>
+                <input id="iouSlider" type="range" min="0.1" max="0.9" step="0.05" value="0.45" />
+              </div>
+
+              <button id="camBtn" class="btn primary hide" type="button">Start Camera</button>
+              <button id="stopBtn" class="btn secondary hide" type="button">Stop</button>
+            </div>
+
+            <div class="canvas-wrap">
+              <video id="video" playsinline muted></video>
+              <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="status-row">
+              <div class="status">
+                <span id="dot" class="dot"></span>
+                <span id="statusText">Loading model…</span>
+              </div>
+            </div>
+
+            <div class="results" id="results">
+              <div class="stat"><div class="v" id="statCount">0</div><div class="k">Detections</div></div>
+              <div class="stat"><div class="v" id="statMax">—</div><div class="k">Max Confidence</div></div>
+              <div class="stat"><div class="v" id="statTime">—</div><div class="k">Inference (ms)</div></div>
+              <div class="stat"><div class="v" id="statFps">—</div><div class="k">FPS (live)</div></div>
+            </div>
+
+            <div class="detlist" id="detList"></div>
+
+            <p class="disclaimer">
+              <strong>Research and educational use only.</strong> This interface is not a medical device and must not be used for diagnosis. Processing is intended to run locally in the browser.
+            </p>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="grid-shell footer-inner">
+      <div style="grid-column:1 / -1;">NeuroScan · Browser-based ONNX inference · Ready for GitHub Pages</div>
+    </div>
+  </footer>
+
+  <script>
+    const MODEL_CONFIG = {
+      path: "./best.onnx",
+      inputSize: 640,
+      classNames: ["tumor"],
+      colors: ["#00c2b2", "#e35d7a", "#f2b04e", "#7a89ff"]
+    };
+
+    let session = null;
+    let mode = "image";
+    let stream = null;
+    let running = false;
+    let conf = 0.25;
+    let iou = 0.45;
+    let rafId = null;
+    let fpsT = performance.now();
+    let frames = 0;
+
+    const $ = id => document.getElementById(id);
+    const canvas = $("canvas");
+    const ctx = canvas.getContext("2d");
+    const video = $("video");
+
+    async function loadModel(){
+      try{
+        ort.env.wasm.numThreads = 1;
+        session = await ort.InferenceSession.create(MODEL_CONFIG.path, {
+          executionProviders: ["wasm"],
+          graphOptimizationLevel: "all"
+        });
+        setStatus("Model ready — upload a scan to begin", "on");
+      }catch(e){
+        setStatus("Failed to load best.onnx: " + e.message, "");
+      }
+    }
+
+    function setStatus(text, cls){
+      $("statusText").textContent = text;
+      $("dot").className = "dot " + (cls || "");
+    }
+
+    function preprocess(source, w, h){
+      const S = MODEL_CONFIG.inputSize;
+      const r = Math.min(S / w, S / h);
+      const nw = Math.round(w * r);
+      const nh = Math.round(h * r);
+      const dx = (S - nw) / 2;
+      const dy = (S - nh) / 2;
+
+      const tmp = document.createElement("canvas");
+      tmp.width = S;
+      tmp.height = S;
+      const tctx = tmp.getContext("2d");
+
+      tctx.fillStyle = "#000";
+      tctx.fillRect(0, 0, S, S);
+      tctx.drawImage(source, dx, dy, nw, nh);
+
+      const { data } = tctx.getImageData(0, 0, S, S);
+      const arr = new Float32Array(S * S * 3);
+
+      for(let i = 0; i < S * S; i++){
+        arr[i] = data[i * 4] / 255;
+        arr[i + S * S] = data[i * 4 + 1] / 255;
+        arr[i + 2 * S * S] = data[i * 4 + 2] / 255;
+      }
+
+      return {
+        tensor: new ort.Tensor("float32", arr, [1, 3, S, S]),
+        r, dx, dy
+      };
+    }
+
+    function parseOutput(out, meta, ow, oh){
+      const nc = MODEL_CONFIG.classNames.length;
+      const d = out.data;
+      const dims = out.dims;
+
+      if(!dims || dims.length < 3) return [];
+
+      const nAttr = dims[1];
+      const nBox = dims[2];
+      const boxes = [];
+
+      for(let i = 0; i < nBox; i++){
+        let best = 0;
+        let cls = 0;
+
+        for(let c = 0; c < nc; c++){
+          const score = d[(4 + c) * nBox + i];
+          if(score > best){
+            best = score;
+            cls = c;
+          }
+        }
+
+        if(best < conf) continue;
+
+        const cx = d[i];
+        const cy = d[nBox + i];
+        const bw = d[2 * nBox + i];
+        const bh = d[3 * nBox + i];
+
+        const x = (cx - bw / 2 - meta.dx) / meta.r;
+        const y = (cy - bh / 2 - meta.dy) / meta.r;
+
+        boxes.push({
+          x: Math.max(0, x),
+          y: Math.max(0, y),
+          w: bw / meta.r,
+          h: bh / meta.r,
+          score: best,
+          cls
+        });
+      }
+
+      return nms(boxes, iou);
+    }
+
+    function nms(boxes, thr){
+      boxes.sort((a, b) => b.score - a.score);
+      const keep = [];
+
+      while(boxes.length){
+        const a = boxes.shift();
+        keep.push(a);
+
+        boxes = boxes.filter(b => {
+          const x1 = Math.max(a.x, b.x);
+          const y1 = Math.max(a.y, b.y);
+          const x2 = Math.min(a.x + a.w, b.x + b.w);
+          const y2 = Math.min(a.y + a.h, b.y + b.h);
+          const inter = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+          const union = a.w * a.h + b.w * b.h - inter;
+          const ov = union > 0 ? inter / union : 0;
+          return ov < thr;
+        });
+      }
+
+      return keep;
+    }
+
+    function draw(source, dets, ow, oh){
+      canvas.width = ow;
+      canvas.height = oh;
+      ctx.drawImage(source, 0, 0, ow, oh);
+
+      dets.forEach(dt => {
+        const col = MODEL_CONFIG.colors[dt.cls % MODEL_CONFIG.colors.length];
+        ctx.lineWidth = Math.max(2, ow / 300);
+        ctx.strokeStyle = col;
+        ctx.fillStyle = col + "22";
+        ctx.beginPath();
+        ctx.rect(dt.x, dt.y, dt.w, dt.h);
+        ctx.fill();
+        ctx.stroke();
+
+        const label = `${MODEL_CONFIG.classNames[dt.cls]} ${(dt.score * 100).toFixed(0)}%`;
+        ctx.font = `${Math.max(14, ow / 45)}px Satoshi, sans-serif`;
+        const tw = ctx.measureText(label).width;
+        const boxY = Math.max(0, dt.y - 24);
+        ctx.fillStyle = col;
+        ctx.fillRect(dt.x, boxY, tw + 14, 24);
+        ctx.fillStyle = "#04201d";
+        ctx.fillText(label, dt.x + 7, boxY + 17);
+      });
+    }
+
+    async function detect(source, ow, oh){
+      if(!session || !ow || !oh) return [];
+
+      const meta = preprocess(source, ow, oh);
+      const t0 = performance.now();
+      const out = await session.run({ [session.inputNames[0]]: meta.tensor });
+      const t1 = performance.now();
+
+      const primaryOutput = out[session.outputNames[0]];
+      const dets = parseOutput(primaryOutput, meta, ow, oh);
+
+      draw(source, dets, ow, oh);
+      updateStats(dets, t1 - t0);
+      return dets;
+    }
+
+    function updateStats(dets, ms){
+      $("statCount").textContent = dets.length;
+      $("statMax").textContent = dets.length
+        ? (Math.max(...dets.map(d => d.score)) * 100).toFixed(1) + "%"
+        : "—";
+      $("statTime").textContent = ms.toFixed(0);
+
+      const list = $("detList");
+      list.innerHTML = "";
+
+      dets.forEach((d, i) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+          <span>#${i + 1} · ${MODEL_CONFIG.classNames[d.cls]}</span>
+          <span class="badge">${(d.score * 100).toFixed(1)}%</span>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function handleImage(file){
+      const img = new Image();
+      img.onload = () => {
+        setStatus("Analyzing…", "busy");
+        detect(img, img.naturalWidth, img.naturalHeight)
+          .then(() => setStatus("Done", "on"))
+          .catch(err => setStatus("Inference error: " + err.message, ""));
+      };
+      img.src = URL.createObjectURL(file);
+    }
+
+    function handleVideo(file){
+      stopMedia();
+      video.srcObject = null;
+      video.src = URL.createObjectURL(file);
+      video.onloadeddata = () => {
+        video.play();
+        running = true;
+        setStatus("Video inference running", "on");
+        loopVideo();
+      };
+    }
+
+    async function loopVideo(){
+      if(!running || video.paused || video.ended){
+        setStatus("Video ended", "on");
+        return;
+      }
+      try{
+        await detect(video, video.videoWidth, video.videoHeight);
+        tickFps();
+      }catch(err){
+        setStatus("Inference error: " + err.message, "");
+        running = false;
+        return;
+      }
+      rafId = requestAnimationFrame(loopVideo);
+    }
+
+    async function startCam(){
+      try{
+        stopMedia();
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 }
+        });
+        video.srcObject = stream;
+        await video.play();
+        running = true;
+        $("camBtn").classList.add("hide");
+        $("stopBtn").classList.remove("hide");
+        setStatus("Live detection running", "on");
+        loopCam();
+      }catch(e){
+        setStatus("Camera access denied: " + e.message, "");
+      }
+    }
+
+    async function loopCam(){
+      if(!running) return;
+      try{
+        await detect(video, video.videoWidth, video.videoHeight);
+        tickFps();
+      }catch(err){
+        setStatus("Inference error: " + err.message, "");
+        running = false;
+        return;
+      }
+      rafId = requestAnimationFrame(loopCam);
+    }
+
+    function stopMedia(){
+      running = false;
+      if(rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+
+      if(stream){
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+
+      if(video.srcObject){
+        video.srcObject = null;
+      }
+
+      $("camBtn").classList.remove("hide");
+      $("stopBtn").classList.add("hide");
+      $("statFps").textContent = "—";
+    }
+
+    function tickFps(){
+      frames++;
+      const now = performance.now();
+      if(now - fpsT >= 1000){
+        $("statFps").textContent = frames;
+        frames = 0;
+        fpsT = now;
+      }
+    }
+
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".mode-btn").forEach(x => x.classList.remove("active"));
+        btn.classList.add("active");
+        stopMedia();
+        mode = btn.dataset.mode;
+
+        const dz = $("dropZone");
+        const fi = $("fileInput");
+        const cam = $("camBtn");
+
+        if(mode === "webcam"){
+          dz.classList.add("hide");
+          cam.classList.remove("hide");
+        }else{
+          dz.classList.remove("hide");
+          cam.classList.add("hide");
+
+          if(mode === "image"){
+            fi.accept = "image/*";
+            $("dropText").innerHTML = "<strong>Click or drag</strong> an MRI scan image here";
+          }else{
+            fi.accept = "video/*";
+            $("dropText").innerHTML = "<strong>Click or drag</strong> a scan video here";
+          }
+        }
+
+        setStatus("Model ready — select input", "on");
+      });
+    });
+
+    $("dropZone").addEventListener("click", () => $("fileInput").click());
+
+    $("fileInput").addEventListener("change", e => {
+      const f = e.target.files[0];
+      if(!f) return;
+      if(mode === "image") handleImage(f);
+      else handleVideo(f);
+    });
+
+    ["dragover","dragleave","drop"].forEach(ev => {
+      $("dropZone").addEventListener(ev, e => {
+        e.preventDefault();
+        $("dropZone").classList.toggle("drag", ev === "dragover");
+        if(ev === "drop"){
+          const f = e.dataTransfer.files[0];
+          if(!f) return;
+          if(mode === "image") handleImage(f);
+          else handleVideo(f);
+        }
+      });
+    });
+
+    $("camBtn").addEventListener("click", startCam);
+    $("stopBtn").addEventListener("click", () => {
+      stopMedia();
+      setStatus("Stopped", "on");
+    });
+
+    $("confSlider").addEventListener("input", e => {
+      conf = +e.target.value;
+      $("confVal").textContent = conf.toFixed(2);
+    });
+
+    $("iouSlider").addEventListener("input", e => {
+      iou = +e.target.value;
+      $("iouVal").textContent = iou.toFixed(2);
+    });
+
+    loadModel();
+  </script>
+</body>
+</html>
