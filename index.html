@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>NeuroScan - Brain Tumor Detection</title>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
 <style>
-:root{--bg:#0b0d10;--surface:#12161b;--surface-2:#181d24;--border:rgba(230,232,236,.12);--text:#edf1f4;--muted:#9da6b2;--faint:#6f7782;--accent:#00c2b2;--accent-2:#7be7dd;--danger:#e35d7a;--radius:18px;--font-body:'Helvetica Neue',Arial,sans-serif;}
+:root{--bg:#0b0d10;--surface:#12161b;--surface-2:#181d24;--border:rgba(230,232,236,.12);--text:#edf1f4;--muted:#9da6b2;--faint:#6f7782;--accent:#00c2b2;--danger:#e35d7a;--radius:18px;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{min-height:100dvh;font-family:var(--font-body);color:var(--text);background:var(--bg);line-height:1.6;padding:24px;}
+body{min-height:100dvh;font-family:'Helvetica Neue',Arial,sans-serif;color:var(--text);background:var(--bg);line-height:1.6;padding:24px;}
 .wrap{width:min(100% - 24px,1100px);margin-inline:auto;}
 header{padding:16px 0;border-bottom:1px solid var(--border);margin-bottom:24px;}
 header h1{font-size:1.6rem;color:var(--accent);}
@@ -18,30 +18,35 @@ header p{color:var(--muted);font-size:.9rem;}
 .sidebar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
 .sidebar h3{font-size:.95rem;margin-bottom:12px;}
 .modes{display:grid;gap:10px;margin-bottom:20px;}
-.mode-btn{width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;cursor:pointer;font-weight:600;}
+.mode-btn{width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:12px 14px;border-radius:10px;cursor:pointer;font-weight:600;transition:all .2s;}
+.mode-btn:hover{border-color:var(--accent);}
 .mode-btn.active{background:var(--accent);color:#062321;border-color:transparent;}
 .notes{color:var(--muted);font-size:.85rem;}
 .workspace{display:grid;gap:18px;}
-.drop{border:1.5px dashed rgba(237,241,244,.2);border-radius:16px;padding:40px 20px;min-height:150px;display:grid;place-items:center;text-align:center;color:var(--muted);background:var(--surface);cursor:pointer;}
-.drop.drag{border-color:var(--accent);background:var(--surface-2);}
+.drop{border:1.5px dashed rgba(237,241,244,.2);border-radius:16px;padding:40px 20px;min-height:150px;display:grid;place-items:center;text-align:center;color:var(--muted);background:var(--surface);cursor:pointer;transition:all .2s;}
+.drop:hover,.drop.drag{border-color:var(--accent);background:var(--surface-2);}
 .drop strong{color:var(--text)}
 .hide{display:none!important}
 .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:end;}
 .control{min-width:180px;}
 .control label{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;}
 input[type=range]{width:100%;accent-color:var(--accent);}
-.btn{border:none;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;font-family:inherit;}
+.btn{border:none;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
+.btn:hover:not(:disabled){transform:translateY(-1px);}
 .btn.primary{background:var(--accent);color:#062321;}
 .btn.secondary{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
-.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
 .canvas-wrap{position:relative;width:100%;min-height:300px;border-radius:16px;overflow:hidden;background:#050607;border:1px solid var(--border);display:grid;place-items:center;}
 canvas{display:block;width:100%;height:auto;max-width:100%;}
 video{display:none}
 .status{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.92rem;}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--faint);}
 .dot.on{background:var(--accent);}
-.dot.busy{background:#e0a44e;}
+.dot.busy{background:#e0a44e;animation:pulse 1s infinite;}
 .dot.err{background:var(--danger);}
+@keyframes pulse{50%{opacity:.3}}
+.progress-wrap{background:var(--surface-2);border-radius:8px;height:8px;overflow:hidden;margin-top:8px;}
+.progress-bar{height:100%;background:var(--accent);width:0;transition:width .3s;}
 .results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;}
 @media(max-width:820px){.results{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;}
@@ -69,7 +74,7 @@ video{display:none}
 <button class="mode-btn" data-mode="webcam">Live Camera</button>
 </div>
 <h3>Model Notes</h3>
-<p class="notes">Inference runs locally in your browser using best.onnx loaded from the same directory.</p>
+<p class="notes">First load downloads 19MB model - cached locally for instant future loads.</p>
 </aside>
 <section class="workspace">
 <div id="dropZone" class="drop">
@@ -86,7 +91,8 @@ video{display:none}
 <video id="video" playsinline muted></video>
 <canvas id="canvas" width="640" height="360"></canvas>
 </div>
-<div class="status"><span id="dot" class="dot"></span><span id="statusText">Loading model...</span></div>
+<div class="status"><span id="dot" class="dot"></span><span id="statusText">Initializing...</span></div>
+<div id="progressWrap" class="progress-wrap hide"><div id="progressBar" class="progress-bar"></div></div>
 <div class="results">
 <div class="stat"><div class="v" id="statCount">0</div><div class="k">Detections</div></div>
 <div class="stat"><div class="v" id="statMax">-</div><div class="k">Max Confidence</div></div>
@@ -103,14 +109,68 @@ const $=id=>document.getElementById(id);
 const canvas=$('canvas'),ctx=canvas.getContext('2d'),video=$('video');
 let session=null,mode='image',stream=null,running=false,conf=0.25,iou=0.45,rafId=null,fpsT=performance.now(),frames=0;
 const MODEL={path:'./best.onnx',inputSize:640,classes:['tumor'],colors:['#00c2b2','#e35d7a','#f2b04e','#7a89ff']};
+const CACHE_NAME='neuro-model-v1',CACHE_KEY='best-onnx';
 function setStatus(txt,cls){$('statusText').textContent=txt;$('dot').className='dot '+(cls||'');}
+function setProgress(pct){const w=$('progressWrap'),b=$('progressBar');if(pct===null){w.classList.add('hide');}else{w.classList.remove('hide');b.style.width=pct+'%';}}
+async function getCachedModel(){
+  if(!('indexedDB' in window))return null;
+  try{
+    const db=await new Promise((res,rej)=>{const r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore('models');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+    const tx=db.transaction('models','readonly');
+    const store=tx.objectStore('models');
+    const data=await new Promise((res,rej)=>{const r=store.get(CACHE_KEY);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+    db.close();
+    return data?data.buffer:null;
+  }catch(e){console.warn('Cache read failed:',e);return null;}
+}
+async function setCachedModel(buffer){
+  if(!('indexedDB' in window))return;
+  try{
+    const db=await new Promise((res,rej)=>{const r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=()=>r.result.createObjectStore('models');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+    const tx=db.transaction('models','readwrite');
+    const store=tx.objectStore('models');
+    store.put({buffer},CACHE_KEY);
+    await new Promise((res,rej)=>{tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});
+    db.close();
+  }catch(e){console.warn('Cache write failed:',e);}
+}
+async function downloadModelWithProgress(url){
+  const resp=await fetch(url);
+  if(!resp.ok)throw new Error('Download failed');
+  const total=+resp.headers.get('content-length')||0;
+  const reader=resp.body.getReader();
+  let received=0;
+  const chunks=[];
+  while(true){
+    const{done,value}=await reader.read();
+    if(done)break;
+    chunks.push(value);
+    received+=value.length;
+    if(total>0)setProgress(Math.round(received/total*100));
+  }
+  const blob=new Blob(chunks);
+  return await blob.arrayBuffer();
+}
 async function loadModel(){
   try{
-    if(typeof ort==='undefined'){setStatus('ORT not loaded',err);return;}
+    if(typeof ort==='undefined'){setStatus('ORT not loaded','err');return;}
     ort.env.wasm.numThreads=1;
-    session=await ort.InferenceSession.create(MODEL.path,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
-    setStatus('Model ready - upload a scan','on');
-  }catch(e){setStatus('Model error: '+e.message,'err');}
+    setStatus('Checking cache...','busy');
+    let buffer=await getCachedModel();
+    if(buffer){
+      setStatus('Loading from cache...','busy');
+    }else{
+      setStatus('Downloading model (19MB)...','busy');
+      setProgress(0);
+      buffer=await downloadModelWithProgress(MODEL.path);
+      setProgress(null);
+      setStatus('Caching model...','busy');
+      await setCachedModel(buffer);
+    }
+    setStatus('Initializing session...','busy');
+    session=await ort.InferenceSession.create(buffer,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
+    setStatus('Ready - upload a scan','on');
+  }catch(e){setStatus('Error: '+e.message,'err');console.error(e);}
 }
 function drawImageToCanvas(img){
   canvas.width=img.naturalWidth||img.videoWidth||640;
@@ -141,7 +201,6 @@ function parseBoxes(out,meta,ow,oh){
   else if(dims.length===2){nAttr=dims[1];nBox=dims[0];transposed=true;}
   else{nBox=dims[dims.length-1];nAttr=dims[dims.length-2];}
   const boxes=[];
-  const S=MODEL.inputSize;
   for(let i=0;i<nBox;i++){
     const get=(row,col)=>transposed?d[col*nAttr+row]:d[row*nBox+col];
     let bestScore=0,cls=0;
@@ -213,7 +272,7 @@ function handleImage(file){
     try{
       await runInference(img,img.naturalWidth,img.naturalHeight);
       setStatus('Done','on');
-    }catch(e){setStatus('Inference error: '+e.message,'err');}
+    }catch(e){setStatus('Error: '+e.message,'err');}
   };
   img.src=URL.createObjectURL(file);
 }
@@ -223,7 +282,7 @@ function handleVideo(file){
   video.onloadeddata=()=>{
     video.play();
     running=true;
-    setStatus('Video running','on');
+    setStatus('Running...','on');
     loopVideo();
   };
 }
@@ -240,7 +299,7 @@ async function startCam(){
     video.srcObject=stream;await video.play();
     running=true;
     $('camBtn').classList.add('hide');$('stopBtn').classList.remove('hide');
-    setStatus('Live running','on');loopCam();
+    setStatus('Live','on');loopCam();
   }catch(e){setStatus('Camera: '+e.message,'err');}
 }
 async function loopCam(){
@@ -265,7 +324,7 @@ document.querySelectorAll('.mode-btn').forEach(btn=>{
     const dz=$('dropZone'),fi=$('fileInput');
     if(mode==='webcam'){dz.classList.add('hide');$('camBtn').classList.remove('hide');}
     else{dz.classList.remove('hide');$('camBtn').classList.add('hide');fi.accept=mode==='image'?'image/*':'video/*';$('dropText').innerHTML='<strong>Click or drag</strong> a '+(mode==='image'?'scan image':'video')+' here';}
-    setStatus('Ready','on');
+    if(session)setStatus('Ready','on');
   });
 });
 $('dropZone').addEventListener('click',()=>$('fileInput').click());
